@@ -2,27 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CSV Fetch Debug</title>
+  <title>CSV Table Display</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
-  <h2>Check browser console (F12)</h2>
+
+  <h2>CSV Viewer</h2>
+  <table id="csvTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Place</th>
+        <th>Amount</th>
+        <th>BookPage</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
   <script>
-    const CSV_URL = 
-      'https://raw.githubusercontent.com/AdhithAdhi/Sambhavana/0d704f0a8f5109c1f06bd3b0b8865bb0cbe6cd4e/Wedding%201%20-%20Copy(in).csv';
+    const CSV_URL = 'https://raw.githubusercontent.com/AdhithAdhi/Sambhavana/0d704f0a8f5109c1f06bd3b0b8865bb0cbe6cd4e/Wedding%201%20-%20Copy(in).csv';
 
-    console.log('📥 Fetching:', CSV_URL);
-
-    fetch(CSV_URL)
-      .then(r => {
-        console.log('Fetch status:', r.status, r.statusText);
-        return r.text();
-      })
-      .then(text => {
-        console.log('First 500 characters:', text.slice(0, 500));
-      })
-      .catch(err => {
-        console.error('Fetch error:', err);
-      });
+    $(document).ready(() => {
+      fetch(CSV_URL)
+        .then(response => response.text())
+        .then(text => {
+          const rows = text.trim().split('\r').filter(line => line.trim() !== '');
+          const data = rows.slice(1).map(line => line.split('-')); // skip header
+          
+          $('#csvTable').DataTable({
+            data: data,
+            columns: [
+              { title: "Name" },
+              { title: "Address" },
+              { title: "Place" },
+              { title: "Amount" },
+              { title: "BookPage" }
+            ]
+          });
+        })
+        .catch(err => console.error("Fetch error:", err));
+    });
   </script>
+
 </body>
 </html>
