@@ -2,22 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CSV Table Display</title>
+  <title>CSV Viewer with Book/Page Filters</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
 
-  <h2>CSV Viewer</h2>
+  <h2>CSV Viewer with Filters</h2>
+
+  <label for="bookFilter">Book Number:</label>
+  <select id="bookFilter">
+    <option value="">All</option>
+  </select>
+
+  <label for="pageFilter">Page Number:</label>
+  <select id="pageFilter">
+    <option value="">All</option>
+  </select>
+
   <table id="csvTable" class="display" style="width:100%">
     <thead>
       <tr>
+        <th>SL No</th>
         <th>Name</th>
         <th>Address</th>
         <th>Place</th>
         <th>Amount</th>
-        <th>BookPage</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -26,25 +37,78 @@
   <script>
     const CSV_URL = 'https://raw.githubusercontent.com/AdhithAdhi/Sambhavana/0d704f0a8f5109c1f06bd3b0b8865bb0cbe6cd4e/Wedding%201%20-%20Copy(in).csv';
 
+    let table;
+    let fullData = [];
+
+    function extractBookPage(value) {
+      const match = value.match(/B(\d+)_P(\d+)/i);
+      return match ? { book: match[1], page: match[2] } : { book: '', page: '' };
+    }
+
+    function populateDropdown(selector, values) {
+      const unique = [...new Set(values)].sort((a, b) => parseInt(a) - parseInt(b));
+      for (const val of unique) {
+        if (val) $(selector).append(`<option value="${val}">${val}</option>`);
+      }
+    }
+
+    function filterTable() {
+      const selectedBook = $('#bookFilter').val();
+      const selectedPage = $('#pageFilter').val();
+
+      const filtered = fullData.filter(row => {
+        return (!selectedBook || row.book === selectedBook) &&
+               (!selectedPage || row.page === selectedPage);
+      });
+
+      table.clear();
+      table.rows.add(filtered.map((row, index) => [
+        index + 1, row.name, row.address, row.place, row.amount
+      ])).draw();
+    }
+
     $(document).ready(() => {
       fetch(CSV_URL)
         .then(response => response.text())
         .then(text => {
-          const rows = text.trim().split('\r').filter(line => line.trim() !== '');
-          const data = rows.slice(1).map(line => line.split('-')); // skip header
-          
-          $('#csvTable').DataTable({
-            data: data,
+          const lines = text.trim().split('\r').filter(l => l.trim() !== '');
+          const data = lines.slice(1).map(line => line.split('-'));
+
+          fullData = data.map((fields, index) => {
+            const [name, address, place, amount, bookPageRaw] = fields;
+            const { book, page } = extractBookPage(bookPageRaw);
+            return {
+              slno: index + 1,
+              name,
+              address,
+              place,
+              amount,
+              book,
+              page
+            };
+          });
+
+          const bookList = fullData.map(d => d.book);
+          const pageList = fullData.map(d => d.page);
+
+          populateDropdown('#bookFilter', bookList);
+          populateDropdown('#pageFilter', pageList);
+
+          table = $('#csvTable').DataTable({
+            data: fullData.map(d => [d.slno, d.name, d.address, d.place, d.amount]),
             columns: [
+              { title: "SL No" },
               { title: "Name" },
               { title: "Address" },
               { title: "Place" },
-              { title: "Amount" },
-              { title: "BookPage" }
-            ]
+              { title: "Amount" }
+            ],
+            order: [[0, 'asc']] // sort by SL No
           });
+
+          $('#bookFilter, #pageFilter').on('change', filterTable);
         })
-        .catch(err => console.error("Fetch error:", err));
+        .catch(err => console.error("Error loading CSV:", err));
     });
   </script>
 
