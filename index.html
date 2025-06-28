@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple CSV Viewer</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+
+  <h2>CSV Viewer</h2>
+
+  <table id="csvTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Place</th>
+        <th>Amount</th>
+        <th>BookPage</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const CSV_URL = 'https://raw.githubusercontent.com/AdhithAdhi/Sambhavana/0d704f0a8f5109c1f06bd3b0b8865bb0cbe6cd4e/Wedding%201%20-%20Copy(in).csv';
+
+    $(document).ready(function () {
+      Papa.parse(CSV_URL, {
+        download: true,
+        header: true,
+        delimiter: "-",
+        complete: function(results) {
+          const data = results.data.filter(row => row.BookPage); // remove empty rows
+          const formattedData = data.map(row => [
+            row.Name,
+            row.Address,
+            row.Place,
+            row.Amount,
+            row.BookPage
+          ]);
+
+          $('#csvTable').DataTable({
+            data: formattedData,
+            columns: [
+              { title: "Name" },
+              { title: "Address" },
+              { title: "Place" },
+              { title: "Amount" },
+              { title: "BookPage" }
+            ]
+          });
+        },
+        error: function(err) {
+          console.error("CSV parse error:", err);
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
