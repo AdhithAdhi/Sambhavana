@@ -1,25 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>CSV Viewer with Book/Page Filters</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <meta charset="UTF-8" />
+  <title>CSV Viewer with Filters</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 10px;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    @media screen and (max-width: 600px) {
+      .filters {
+        flex-direction: column;
+      }
+      .dataTables_length {
+        margin-top: 15px;
+      }
+    }
+  </style>
 </head>
 <body>
 
   <h2>CSV Viewer with Filters</h2>
 
-  <label for="bookFilter">Book Number:</label>
-  <select id="bookFilter">
-    <option value="">All</option>
-  </select>
-
-  <label for="pageFilter">Page Number:</label>
-  <select id="pageFilter">
-    <option value="">All</option>
-  </select>
+  <div class="filters">
+    <label>
+      Book Number:
+      <select id="bookFilter">
+        <option value="">All</option>
+      </select>
+    </label>
+    <label>
+      Page Number:
+      <select id="pageFilter">
+        <option value="">All</option>
+      </select>
+    </label>
+  </div>
 
   <table id="csvTable" class="display" style="width:100%">
     <thead>
@@ -46,23 +77,32 @@
     }
 
     function populateDropdown(selector, values) {
-      const unique = [...new Set(values)].sort((a, b) => parseInt(a) - parseInt(b));
+      const unique = [...new Set(values)].filter(v => v).sort((a, b) => +a - +b);
+      $(selector).empty().append('<option value="">All</option>');
       for (const val of unique) {
-        if (val) $(selector).append(`<option value="${val}">${val}</option>`);
+        $(selector).append(`<option value="${val}">${val}</option>`);
       }
     }
 
-    function filterTable() {
-      const selectedBook = $('#bookFilter').val();
-      const selectedPage = $('#pageFilter').val();
-
-      const filtered = fullData.filter(row => {
+    function getFilteredData(selectedBook, selectedPage) {
+      return fullData.filter(row => {
         return (!selectedBook || row.book === selectedBook) &&
                (!selectedPage || row.page === selectedPage);
       });
+    }
+
+    function refreshTable(data) {
+      const sorted = data.sort((a, b) => {
+        const bookA = parseInt(a.book, 10);
+        const bookB = parseInt(b.book, 10);
+        const pageA = parseInt(a.page, 10);
+        const pageB = parseInt(b.page, 10);
+        if (bookA !== bookB) return bookA - bookB;
+        return pageA - pageB;
+      });
 
       table.clear();
-      table.rows.add(filtered.map((row, index) => [
+      table.rows.add(sorted.map((row, index) => [
         index + 1, row.name, row.address, row.place, row.amount
       ])).draw();
     }
@@ -78,7 +118,6 @@
             const [name, address, place, amount, bookPageRaw] = fields;
             const { book, page } = extractBookPage(bookPageRaw);
             return {
-              slno: index + 1,
               name,
               address,
               place,
@@ -88,14 +127,11 @@
             };
           });
 
-          const bookList = fullData.map(d => d.book);
-          const pageList = fullData.map(d => d.page);
-
-          populateDropdown('#bookFilter', bookList);
-          populateDropdown('#pageFilter', pageList);
+          populateDropdown('#bookFilter', fullData.map(d => d.book));
+          populateDropdown('#pageFilter', fullData.map(d => d.page));
 
           table = $('#csvTable').DataTable({
-            data: fullData.map(d => [d.slno, d.name, d.address, d.place, d.amount]),
+            data: [],
             columns: [
               { title: "SL No" },
               { title: "Name" },
@@ -103,10 +139,26 @@
               { title: "Place" },
               { title: "Amount" }
             ],
-            order: [[0, 'asc']] // sort by SL No
+            order: [[0, 'asc']]
           });
 
-          $('#bookFilter, #pageFilter').on('change', filterTable);
+          refreshTable(fullData);
+
+          $('#bookFilter').on('change', function () {
+            const book = this.value;
+            const pagesForBook = fullData
+              .filter(d => !book || d.book === book)
+              .map(d => d.page);
+            populateDropdown('#pageFilter', pagesForBook);
+            $('#pageFilter').val('');
+            refreshTable(getFilteredData(book, ""));
+          });
+
+          $('#pageFilter').on('change', function () {
+            const book = $('#bookFilter').val();
+            const page = this.value;
+            refreshTable(getFilteredData(book, page));
+          });
         })
         .catch(err => console.error("Error loading CSV:", err));
     });
